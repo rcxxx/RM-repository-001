@@ -9,6 +9,11 @@
 using namespace cv;
 using namespace std;
 
+#define h_w_ratio_min  2.800
+#define h_w_ratio_max  3.800
+#define min_area  1000
+
+
 Mat frame;      //原图
 Mat hsv_img;    //HSV图
 Mat bin_img;    //二值图
@@ -29,14 +34,11 @@ int main()
         capture >> frame;
 
         cvtColor(frame,hsv_img,COLOR_BGR2HSV);
-        inRange(hsv_img,Scalar(0,60,60),Scalar(10,255,255),bin_img);  //红色
-//        threshold(bin_img,bin_img,20,255,THRESH_BINARY);
-//        GaussianBlur(bin_img,bin_img,Size(1,1),0,0,BORDER_DEFAULT);
-        medianBlur(bin_img,bin_img,5);
+        inRange(hsv_img,Scalar(0,80,80),Scalar(15,255,255),bin_img);  //红色
+//        inRange(hsv_img,Scalar(),Scalar(),bin_img);//蓝色
+        medianBlur(bin_img,bin_img,7);
 
-        Point up = Point(320,0);                          //定义显示窗口上中点
-        Point down = Point(320,480);                      //定义显示窗口下中点
-        line(frame, up,down,Scalar(0,255,255),4,8,0);     //连中线
+        line(frame, Point(320,0),Point(320,480),Scalar(0,255,255),4,8,0);     //纵向中线
 
         vector<vector<Point>>contours;
         vector<Vec4i>hierarchy;
@@ -44,7 +46,7 @@ int main()
 
         vector<RotatedRect>minRects(contours.size());
 
-        for (int i = 0; i < contours.size(); ++i)
+        for (uint i = 0; i < contours.size(); ++i)
         {
             minRects[i] = minAreaRect(Mat(contours[i]));
             {
@@ -56,13 +58,11 @@ int main()
                 double x1 = rectPoints[1].x;
                 double y1 = rectPoints[1].y;
                 double x2 = rectPoints[2].x;
-                double y2 = rectPoints[2].y;
-                double x3 = rectPoints[3].x;
-                double y3 = rectPoints[3].y;                //定义返回的四个坐标点
+                double y2 = rectPoints[2].y;               //定义返回的坐标点
 
-                double width = sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
+                double width  = sqrt((x2-x1)*(x2-x1)+(y2-y1)*(y2-y1));
                 double height = sqrt((x0-x1)*(x0-x1)+(y0-y1)*(y0-y1));    //定义长宽
-                double area = width * height;                            //面积
+                double area = width * height;                             //面积
                 double w = 0,h = 0;
                 if(width > height)
                 {
@@ -74,39 +74,28 @@ int main()
                     h = height;
                     w = width;
                 }
-                double h_w_ratio = fabs( h / w ) ;                     // 高宽比
 
+                double h_w_ratio = fabs( h / w ) ;                     // 高宽比
                 double rect_x1 = (x0 + x2)/2;                 //轮廓在X轴上的中点
                 double rect_y1 = (y0 + y2)/2;                 //轮廓在Y轴上的中点
-
-                Point contour_center = Point(rect_x1, rect_y1);
-                double CENTER_POINT_YELLOWLINE_DISTANCE = sqrt((rect_x1 -320)*(rect_x1 -320));  //轮廓矩中点到中线的距离
-                double ANGLE_CENTER_POINT_DISTANCE = sqrt((rect_x1 - x0)*(rect_x1 - x0)+(rect_y1 - y0)*(rect_y1 - y0));
-                                                                         //轮廓矩形角点到轮廓矩中点的距离
                 double position = rect_x1 - 320;       //判断砖头在中线的哪个方位 position>0为右侧，position<0为左侧
+                Point contour_center = Point(rect_x1, rect_y1);
 
-                if(h_w_ratio >2.800 && h_w_ratio< 3.800 && area >1000 )
+                if(h_w_ratio > h_w_ratio_min && h_w_ratio< h_w_ratio_max && area > min_area )
                 {
                      for (int j = 0; j < 4; j++)
                     {
-                        if(CENTER_POINT_YELLOWLINE_DISTANCE <ANGLE_CENTER_POINT_DISTANCE * 3.5 && position+15 >0)
+                        if(position+15 >0)
                        {
                             line(frame, rectPoints[j], rectPoints[(j + 1) % 4], Scalar(0,255,0), 4, 8, 0);//--
                             circle(frame, contour_center,15,Scalar( 0,255, 0),2,8,0);
-//                            cout<<"h/w"<<i<<endl;
                             cout<<contour_center<<endl<<endl;
-                            port.RMSerialWrite(contour_center.x,contour_center.y,2);
-
                        }
-
                     }
-
-//                     cout<<area <<endl;
                 }
             }
         }
         imshow("笑果",frame);
-        imshow("2",bin_img);
         char (key)=(char) waitKey(30);
         if (key==27)break;
     }
